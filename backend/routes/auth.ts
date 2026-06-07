@@ -1,14 +1,9 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { db } from '../database'
+import { generateToken } from '../middleware/auth'
 
 const router = Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'pdd-168-secret-key'
-
-function generateToken(user: any) {
-  return jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' })
-}
 
 router.post('/register', (req, res) => {
   const { username, password, name } = req.body

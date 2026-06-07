@@ -1,25 +1,12 @@
 import { Router } from 'express'
 import { db } from '../database'
-import jwt from 'jsonwebtoken'
+import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'pdd-168-secret-key'
-
-function authMiddleware(req: any, res: any, next: any) {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ error: '未登录' })
-  try {
-    const decoded: any = jwt.verify(token, JWT_SECRET)
-    req.userId = decoded.userId
-    next()
-  } catch {
-    return res.status(401).json({ error: '登录已过期' })
-  }
-}
 
 router.use(authMiddleware)
 
-router.get('/', (req: any, res) => {
+router.get('/', (req: AuthRequest, res) => {
   const reminders = db.prepare(`
     SELECT r.*, p.address as property_address
     FROM reminders r
@@ -41,7 +28,7 @@ router.get('/', (req: any, res) => {
   })))
 })
 
-router.post('/', (req: any, res) => {
+router.post('/', (req: AuthRequest, res) => {
   const { propertyId, type, date, note } = req.body
   if (!type || !date) {
     return res.status(400).json({ error: '请填写类型和日期' })
@@ -65,14 +52,14 @@ router.post('/', (req: any, res) => {
   })
 })
 
-router.put('/:id', (req: any, res) => {
+router.put('/:id', (req: AuthRequest, res) => {
   const { active } = req.body
   db.prepare('UPDATE reminders SET active = ? WHERE id = ? AND user_id = ?')
     .run(active ? 1 : 0, req.params.id, req.userId)
   res.json({ success: true })
 })
 
-router.delete('/:id', (req: any, res) => {
+router.delete('/:id', (req: AuthRequest, res) => {
   db.prepare('DELETE FROM reminders WHERE id = ? AND user_id = ?').run(req.params.id, req.userId)
   res.json({ success: true })
 })

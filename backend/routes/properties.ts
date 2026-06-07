@@ -1,25 +1,12 @@
 import { Router } from 'express'
 import { db } from '../database'
-import jwt from 'jsonwebtoken'
+import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'pdd-168-secret-key'
-
-function authMiddleware(req: any, res: any, next: any) {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ error: '未登录' })
-  try {
-    const decoded: any = jwt.verify(token, JWT_SECRET)
-    req.userId = decoded.userId
-    next()
-  } catch {
-    return res.status(401).json({ error: '登录已过期' })
-  }
-}
 
 router.use(authMiddleware)
 
-router.get('/', (req: any, res) => {
+router.get('/', (req: AuthRequest, res) => {
   const properties = db.prepare(
     'SELECT * FROM properties WHERE user_id = ? ORDER BY created_at DESC'
   ).all(req.userId)
@@ -40,7 +27,7 @@ router.get('/', (req: any, res) => {
   })))
 })
 
-router.get('/:id', (req: any, res) => {
+router.get('/:id', (req: AuthRequest, res) => {
   const property: any = db.prepare(
     'SELECT * FROM properties WHERE id = ? AND user_id = ?'
   ).get(req.params.id, req.userId)
@@ -64,7 +51,7 @@ router.get('/:id', (req: any, res) => {
   })
 })
 
-router.post('/', (req: any, res) => {
+router.post('/', (req: AuthRequest, res) => {
   const { address, area, rent, layout, size, photos, landlordName, landlordPhone, status, notes } = req.body
   if (!address || !area || !rent || !layout) {
     return res.status(400).json({ error: '请填写必填项' })
@@ -93,7 +80,7 @@ router.post('/', (req: any, res) => {
   })
 })
 
-router.put('/:id', (req: any, res) => {
+router.put('/:id', (req: AuthRequest, res) => {
   const { address, area, rent, layout, size, photos, landlordName, landlordPhone, status, notes } = req.body
 
   db.prepare(`
@@ -120,14 +107,14 @@ router.put('/:id', (req: any, res) => {
   })
 })
 
-router.delete('/:id', (req: any, res) => {
+router.delete('/:id', (req: AuthRequest, res) => {
   db.prepare('DELETE FROM viewing_notes WHERE property_id = ?').run(req.params.id)
   db.prepare('DELETE FROM reminders WHERE property_id = ?').run(req.params.id)
   db.prepare('DELETE FROM properties WHERE id = ? AND user_id = ?').run(req.params.id, req.userId)
   res.json({ success: true })
 })
 
-router.get('/:id/notes', (req: any, res) => {
+router.get('/:id/notes', (req: AuthRequest, res) => {
   const notes = db.prepare(
     'SELECT * FROM viewing_notes WHERE property_id = ? ORDER BY date DESC'
   ).all(req.params.id)
@@ -145,7 +132,7 @@ router.get('/:id/notes', (req: any, res) => {
   })))
 })
 
-router.post('/:id/notes', (req: any, res) => {
+router.post('/:id/notes', (req: AuthRequest, res) => {
   const { date, lighting, noise, transport, amenities, overallScore, content } = req.body
   if (!date || !content) {
     return res.status(400).json({ error: '请填写日期和感受' })
